@@ -18,22 +18,6 @@ const realTestimonials = [
 ];
 
 // Função para lidar com erro de imagem
-const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, name: string) => {
-  const target = e.target as HTMLImageElement;
-  // Substituir por avatar com inicial
-  const initial = name.charAt(0);
-  target.style.display = 'none';
-  
-  // Criar div com inicial
-  const parent = target.parentElement;
-  if (parent) {
-    parent.innerHTML = `
-      <div class="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
-        ${initial}
-      </div>
-    `;
-  }
-};
 
 export default function SocialProofPremium() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);

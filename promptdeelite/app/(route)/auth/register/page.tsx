@@ -39,14 +39,16 @@ export default function RegisterPage() {
 
         toast.success('Login realizado com sucesso!');
         router.push('/dashboard');
-      } catch (error: any) {
-        console.error('Erro no login com Google:', error.message);
-        toast.error('Erro ao entrar com o Google. Tente novamente.');
-      }
+      } catch (error) {
+  // Faz o type guard antes de acessar error.message
+  const errorMsg = (error instanceof Error) ? error.message : String(error);
+  console.error('Erro no login com Google:', errorMsg);
+  toast.error('Erro ao entrar com o Google. Tente novamente.');
+}
     };
 
     handleGoogleLogin();
-  }, []);
+  }, );
 
   return (
     <div className="min-h-screen flex items-center justify-center text-center">

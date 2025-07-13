@@ -89,8 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         toast.error('Erro ao recuperar dados do usuário.');
       }
-    } catch (error: any) {
-      console.error('Erro no login com Google:', error?.message || error);
+    } catch (error) {
+      // Type guard para acessar .message
+      const msg =
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof (error as { message: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+      console.error('Erro no login com Google:', msg);
       toast.error('Erro ao entrar com o Google.');
       throw error;
     }
