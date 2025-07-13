@@ -4,7 +4,7 @@ import Nichos from './components/Nichos'
 import ComoFunciona from './components/ComoFunciona'
 import Depoimentos from './components/Depoimentos'
 import Footer from './components/footer'
-
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export default function Home() {
   return (
     <>
@@ -16,6 +16,7 @@ export default function Home() {
         <ComoFunciona />
         <Depoimentos />
         <Footer />
+        <SpeedInsights />
       </main>
     </>
   )
