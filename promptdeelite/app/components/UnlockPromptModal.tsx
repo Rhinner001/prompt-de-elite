@@ -34,11 +34,13 @@ export default function UnlockPromptModal({ prompt, onClose, onUnlockSuccess }: 
         throw new Error(data.error || 'Falha ao desbloquear o prompt.');
       }
       onUnlockSuccess(prompt.id);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+ } catch (err) {
+  // Garante que só acessa .message se err for Error
+  const message = err instanceof Error ? err.message : 'Ocorreu um erro inesperado.';
+  setError(message);
+} finally {
+  setIsLoading(false);
+}
   };
 
   return (

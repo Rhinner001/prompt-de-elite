@@ -27,6 +27,7 @@ async function getPrompts(): Promise<Prompt[]> {
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch (error) {
+    
     console.error('Erro ao buscar prompts:', error);
     return [];
   }
