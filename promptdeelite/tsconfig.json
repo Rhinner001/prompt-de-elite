@@ -27,14 +27,14 @@
         "./*"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2017",
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts", "app/page.tsx1",
-
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

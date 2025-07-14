@@ -1,6 +1,9 @@
 import type { Prompt } from '@/types';
 import PromptDetailView from '@/app/components/PromptDetailView';
-import { Link } from 'lucide-react';
+import Link from 'next/link'; // ← CORRIGIDO: era lucide-react
+
+// FORÇAR RENDERIZAÇÃO DINÂMICA
+export const dynamic = 'force-dynamic'
 
 async function getPrompt(slug: string): Promise<Prompt | null> {
   try {
@@ -8,7 +11,7 @@ async function getPrompt(slug: string): Promise<Prompt | null> {
     const apiUrl = `${baseUrl}/api/prompts/${slug}`;
     
     const res = await fetch(apiUrl, { 
-      next: { revalidate: 300 },
+      cache: 'no-store', // ← MUDANÇA: cache dinâmico
       headers: {
         'Content-Type': 'application/json',
       }
@@ -26,16 +29,27 @@ async function getPrompt(slug: string): Promise<Prompt | null> {
   }
 }
 
+// GERAÇÃO ESTÁTICA MELHORADA
 export async function generateStaticParams() {
+  // Durante build local, retorna vazio
+  if (process.env.NODE_ENV !== 'production') {
+    return [];
+  }
+
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/prompts`);
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    
+    const res = await fetch(`${baseUrl}/api/prompts`, {
+      cache: 'no-store'
+    });
     
     if (!res.ok) return [];
     
     const prompts: Prompt[] = await res.json();
     
-    return prompts.map((prompt) => ({
+    return prompts.slice(0, 10).map((prompt) => ({ // ← LIMITE: primeiros 10
       slug: prompt.id,
     }));
   } catch (error) {
@@ -44,12 +58,14 @@ export async function generateStaticParams() {
   }
 }
 
+// COMPONENTE PRINCIPAL - AWAIT PARAMS
 export default async function PromptDetailPage({ 
   params 
 }: { 
-  params: { slug: string } 
+  params: Promise<{ slug: string }> // ← MUDANÇA: Promise
 }) {
-  const prompt = await getPrompt(params.slug);
+  const { slug } = await params; // ← AWAIT OBRIGATÓRIO
+  const prompt = await getPrompt(slug);
 
   if (!prompt) {
     return (
@@ -73,12 +89,14 @@ export default async function PromptDetailPage({
   return <PromptDetailView prompt={prompt} />;
 }
 
+// METADATA - AWAIT PARAMS
 export async function generateMetadata({ 
   params 
 }: { 
-  params: { slug: string } 
+  params: Promise<{ slug: string }> // ← MUDANÇA: Promise
 }) {
-  const prompt = await getPrompt(params.slug);
+  const { slug } = await params; // ← AWAIT OBRIGATÓRIO
+  const prompt = await getPrompt(slug);
   
   if (!prompt) {
     return {
@@ -89,6 +107,6 @@ export async function generateMetadata({
   return {
     title: `${prompt.title} - Prompt de Elite`,
     description: prompt.description,
-    keywords: prompt.tags.join(', '),
+    keywords: prompt.tags?.join(', ') || '',
   };
 }
