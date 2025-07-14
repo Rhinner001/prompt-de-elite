@@ -27,9 +27,9 @@ export default function PromptDetailView({ prompt }: PromptDetailViewProps) {
         <div className="max-w-4xl mx-auto">
           {/* Seção Superior */}
           <div>
-            <a href="/dashboard" className="text-blue-400 hover:text-blue-300 transition-colors">
-              ← Voltar para a Biblioteca
-            </a>
+           <Link href="/biblioteca" className="text-blue-400 hover:text-blue-300 transition-colors">
+  ← Voltar para a Biblioteca
+</Link>
             <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">{prompt.category}</p>
             <h1 className="text-4xl font-bold text-white">{prompt.title}</h1>
             <p className="text-lg text-gray-300 mt-2">{prompt.description}</p>
