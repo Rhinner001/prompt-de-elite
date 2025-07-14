@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db } from '../lib/firebase';
 
 export const useEmailCapture = () => {
   const [loading, setLoading] = useState(false);
