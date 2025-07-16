@@ -37,13 +37,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  appUser: null,
-  loading: true,
-  createUserWithGoogle: async () => {},
-  logout: async () => {},
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // 3. Criação de perfil no Firestore
 const createUserProfileIfNeeded = async (userAuth: User) => {
@@ -90,7 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('Erro ao recuperar dados do usuário.');
       }
     } catch (error) {
-      // Type guard para acessar .message
       const msg =
         error &&
         typeof error === 'object' &&
@@ -106,19 +99,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listener de login automático
   useEffect(() => {
+    setLoading(true); // Garante loading ao iniciar listener!
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+
       if (firebaseUser) {
         await createUserProfileIfNeeded(firebaseUser);
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-
         if (userDoc.exists()) {
           setAppUser(userDoc.data() as AppUser);
+        } else {
+          setAppUser(null);
         }
       } else {
         setAppUser(null);
       }
 
-      setUser(firebaseUser);
       setLoading(false);
     });
 
@@ -144,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // 5. Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
