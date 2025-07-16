@@ -1,36 +1,39 @@
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react'; // ← ADICIONAR React
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  getAuth, 
-  signInWithPopup, 
-  signInWithRedirect, 
+import {
+  getAuth,
+  signInWithPopup,
+  signInWithRedirect,
   getRedirectResult,
-  GoogleAuthProvider 
+  GoogleAuthProvider,
 } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { app } from '@/lib/firebase';
 import toast from 'react-hot-toast';
 
-// Componente interno que usa useSearchParams
+// Função para detectar browser mobile
+function isMobileBrowser() {
+  if (typeof navigator === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') || 'free';
   const [loading, setLoading] = useState(false);
 
-  // Verificar resultado do redirect quando a página carrega
+  // Verifica se voltou de redirect Google (mobile ou fallback)
   useEffect(() => {
     const checkRedirectResult = async () => {
       try {
         const auth = getAuth(app);
         const result = await getRedirectResult(auth);
-        
-        if (result) {
+        if (result && result.user) {
           const user = result.user;
           const db = getFirestore(app);
-          
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
 
@@ -49,81 +52,52 @@ function RegisterContent() {
           router.push('/dashboard');
         }
       } catch (error) {
-        const errorMsg = (error instanceof Error) ? error.message : String(error);
-        console.error('Erro no redirect result:', errorMsg);
         toast.error('Erro ao processar login. Tente novamente.');
+        console.error('Erro no getRedirectResult:', error);
       }
     };
-
     checkRedirectResult();
   }, [plan, router]);
 
-  const handleGoogleLogin = async () => {
+  // Handler Google Login 100% seguro para mobile/desktop
+  const handleGoogleLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    if (isMobileBrowser()) {
+      // MOBILE: redirect imediatamente (não pode fazer loading/toast antes)
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
+    // DESKTOP: tenta popup, se falhar usa redirect
     setLoading(true);
-    
     try {
-      const auth = getAuth(app);
-      const db = getFirestore(app);
-      const provider = new GoogleAuthProvider();
-      
-      // Configurar provider para melhor experiência
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
 
-      try {
-        // Tentar popup primeiro
-        console.log('🔄 Tentando login com popup...');
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email,
-            name: user.displayName || '',
-            photo: user.photoURL || '',
-            plan: plan,
-            createdAt: new Date().toISOString(),
-          });
-        }
-
-        toast.success('Login realizado com sucesso!');
-        router.push('/dashboard');
-        
-      } catch (popupError: any) {
-        console.log('❌ Popup falhou:', popupError.code);
-        
-        // Se popup for bloqueado, usar redirect
-        if (popupError.code === 'auth/popup-blocked' || 
-            popupError.code === 'auth/cancelled-popup-request') {
-          
-          console.log('🔄 Usando redirect como fallback...');
-          toast.loading('Redirecionando para o Google...'); // ← MUDANÇA: toast.loading em vez de toast.info
-          
-          // Usar redirect como fallback
-          await signInWithRedirect(auth, provider);
-          return; // Não continuar, pois vai redirecionar
-        } else {
-          throw popupError;
-        }
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName || '',
+          photo: user.photoURL || '',
+          plan: plan,
+          createdAt: new Date().toISOString(),
+        });
       }
-      
-    } catch (error) {
-      const errorMsg = (error instanceof Error) ? error.message : String(error);
-      console.error('Erro geral no login:', errorMsg);
-      
-      // Mensagens específicas para diferentes erros
-      if (errorMsg.includes('popup-blocked')) {
-        toast.error('Popup foi bloqueado. Habilitando popups para este site pode melhorar a experiência.');
-      } else if (errorMsg.includes('network-request-failed')) {
-        toast.error('Erro de conexão. Verifique sua internet.');
-      } else {
-        toast.error('Erro ao entrar com o Google. Tente novamente.');
-      }
+      toast.success('Login realizado com sucesso!');
+      router.push('/dashboard');
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error: any) {
+      // Se popup falhar (bloqueado), faz redirect
+      await signInWithRedirect(auth, provider);
     } finally {
       setLoading(false);
     }
@@ -136,15 +110,12 @@ function RegisterContent() {
           <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-2xl text-white">🚀</span>
           </div>
-          
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Bem-vindo ao Prompt de Elite
           </h1>
-          
           <p className="text-gray-600 mb-8">
             Entre com sua conta Google para começar sua jornada
           </p>
-          
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -167,7 +138,6 @@ function RegisterContent() {
               </>
             )}
           </button>
-          
           <div className="mt-6 text-xs text-gray-500 text-center">
             <p>Ao continuar, você concorda com nossos</p>
             <p>
@@ -181,7 +151,7 @@ function RegisterContent() {
   );
 }
 
-// Loading component
+// Componente de carregamento (opcional)
 function RegisterLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -193,7 +163,6 @@ function RegisterLoading() {
   );
 }
 
-// Componente principal com Suspense
 export default function RegisterPage() {
   return (
     <Suspense fallback={<RegisterLoading />}>
