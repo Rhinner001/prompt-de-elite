@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import router from 'next/router';
 
 interface UserProfile {
   type: string;
@@ -228,8 +229,8 @@ function ChecklistInteractive() {
             )
           )}
         </div>
-        <button
-          onClick={() => window.location.href = "/dashboard"}
+          <button
+          onClick={() => router.push('/dashboard')}
           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
         >
           🚀 Acessar Biblioteca Completa de Prompts Elite
