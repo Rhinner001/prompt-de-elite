@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import router from 'next/router';
+import { useRouter } from 'next/navigation'; // <-- Importe useRouter aqui também!
 
 interface UserProfile {
   type: string;
@@ -174,6 +174,7 @@ const criterios = [
 ];
 
 function ChecklistInteractive() {
+  const router = useRouter(); // <-- AQUI! useRouter precisa ser inicializado dentro do componente.
   const [step, setStep] = useState<number>(0);
   const [respostas, setRespostas] = useState<Record<number, boolean>>({});
   const [finalizado, setFinalizado] = useState<boolean>(false);
@@ -229,8 +230,12 @@ function ChecklistInteractive() {
             )
           )}
         </div>
-          <button
-          onClick={() => router.push('/dashboard')}
+        <button
+          onClick={() => {
+            // Removendo o try/catch e setTimeout desnecessários.
+            // Com useRouter inicializado, router.push é o método ideal.
+            router.push('dashboard');
+          }}
           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
         >
           🚀 Acessar Biblioteca Completa de Prompts Elite
@@ -421,8 +426,8 @@ export default function AccessPage() {
                 />
                 <KitCard
                   icon="🚀"
-                  title="Acesso Premium"
-                  description="Conta liberada na plataforma + seu primeiro prompt profissional baseado no seu perfil"
+                  title="Acesso Liberado"
+                  description="Acesse a plataforma e desbloqueie o prompts que quiser, baseado no seu perfil"
                   color="text-purple-300"
                   bgColor="from-purple-500 to-purple-600"
                 />
@@ -535,8 +540,8 @@ export default function AccessPage() {
               />
               <SuccessCard
                 icon="🚀"
-                title="Conta Premium"
-                description="Acesso liberado com prompt personalizado para seu perfil"
+                title="Acesso Liberado"
+                description="Escolha 1 prompt para desbloquear de sua preferência e teste a plataforma."
                 color="text-purple-300"
                 bgColor="from-purple-500/20 to-purple-600/10"
               />
