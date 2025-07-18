@@ -1,5 +1,4 @@
 // app/biblioteca/[slug]/page.tsx
-import BibliotecaPageWrapper from '../BibliotecaPageWrapper';
 import type { Prompt } from '@/types';
 import PromptDetailView from '@/app/components/PromptDetailView';
 import Link from 'next/link';
@@ -56,8 +55,8 @@ async function PromptDetailPageContent({ params }: { params: { slug: string } })
 
 export default function PromptDetailPage(props: any) {
   return (
-    <BibliotecaPageWrapper>
+ 
       <PromptDetailPageContent {...props} />
-    </BibliotecaPageWrapper>
+  
   );
 }
