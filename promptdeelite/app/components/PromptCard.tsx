@@ -3,24 +3,79 @@
 import Link from 'next/link';
 import type { Prompt } from '@/types';
 import FavoriteButton from './FavoriteButton';
-import { FaLock, FaThumbsUp, FaThumbsDown } from 'react-icons/fa';
+import { FaLock, FaThumbsUp, FaThumbsDown, FaEye } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/app/src/components/context/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { enviarFeedback } from '@/lib/feedback';
-import toast from 'react-hot-toast'; // Importar toast
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import toast from 'react-hot-toast';
 
 interface PromptCardProps {
   prompt: Prompt;
   isUnlocked: boolean;
   onClick: () => void;
   onOpenFeedback: () => void;
+  onPromptAccessed?: (promptId: string) => void; // Nova prop para callback
 }
 
-export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback }: PromptCardProps) {
-  const { user } = useAuth();
+export default function PromptCard({ 
+  prompt, 
+  isUnlocked, 
+  onClick, 
+  onOpenFeedback,
+  onPromptAccessed 
+}: PromptCardProps) {
+  const { user, appUser } = useAuth();
   const [feedbackGiven, setFeedbackGiven] = useState<null | 'like' | 'dislike'>(null);
   const [loading, setLoading] = useState(false);
+  const [isAccessed, setIsAccessed] = useState(false);
+
+  const isElite = Boolean(appUser?.plan === 'elite');
+
+  // Verificar se o prompt já foi acessado
+  useEffect(() => {
+    const checkIfAccessed = async () => {
+      if (!user || !isElite) return;
+
+      try {
+        const accessDoc = await getDoc(
+          doc(db, 'users', user.uid, 'accessedPrompts', prompt.id)
+        );
+        setIsAccessed(accessDoc.exists());
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error);
+      }
+    };
+
+    checkIfAccessed();
+  }, [user, prompt.id, isElite]);
+
+  // Função para marcar prompt como acessado
+  const markAsAccessed = async () => {
+    if (!user || !isElite || isAccessed) return;
+
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'accessedPrompts', prompt.id), {
+        promptId: prompt.id,
+        accessedAt: new Date().toISOString(),
+        title: prompt.title,
+        category: prompt.category
+      });
+      
+      setIsAccessed(true);
+      
+      // Callback para atualizar estatísticas no dashboard
+      if (onPromptAccessed) {
+        onPromptAccessed(prompt.id);
+      }
+      
+      console.log(`✅ Prompt ${prompt.id} marcado como acessado`);
+    } catch (error) {
+      console.error('Erro ao marcar como acessado:', error);
+    }
+  };
 
   // Função para enviar feedback rápido
   const handleFeedback = async (tipo: 'like' | 'dislike', e: React.MouseEvent) => {
@@ -37,16 +92,16 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
         tipo,
       });
       setFeedbackGiven(tipo);
-    } catch (error) { // Renomeado 'err' para 'error' para clareza
-      console.error('Erro ao enviar feedback:', error); // Logar o erro para debug
-      toast.error('Erro ao enviar feedback. Tente novamente!'); // Usar toast.error
+      toast.success(tipo === 'like' ? 'Obrigado pelo feedback positivo!' : 'Feedback registrado, vamos melhorar!');
+    } catch (error) {
+      console.error('Erro ao enviar feedback:', error);
+      toast.error('Erro ao enviar feedback. Tente novamente!');
     }
     setLoading(false);
   };
 
-  // Função para lidar com clique no card (evita conflitos)
+  // Função para lidar com clique no card
   const handleCardClick = (e: React.MouseEvent) => {
-    // Se clicou em um botão ou elemento interativo, não propaga
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('a')) {
       return;
@@ -55,6 +110,18 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
     if (!isUnlocked) {
       onClick();
     }
+  };
+
+  // Função para lidar com clique no link (marcar como acessado)
+  const handleLinkClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-interactive]')) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Marcar como acessado quando clica para ver o prompt
+    markAsAccessed();
   };
 
   return (
@@ -68,21 +135,31 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
         {/* Conteúdo principal do card */}
         <div className="flex-1 relative">
           <div 
-            className="bg-[#111827] h-full p-6 rounded-lg border border-white/10 text-white flex flex-col cursor-pointer"
+            className="bg-[#111827] h-full p-6 rounded-lg border border-white/10 text-white flex flex-col cursor-pointer relative"
             onClick={handleCardClick}
           >
-            {/* Header com categoria e botão de favorito */}
+            {/* Header com categoria, indicador de acesso e botão de favorito */}
             <div className="flex justify-between items-start mb-2">
-              <p className="text-xs font-mono text-gray-400 pr-2 flex-1">
-                {prompt.category?.toUpperCase()}
-              </p>
-              {/* Botão de favorito com z-index alto e event stopping */}
+              <div className="flex items-center gap-2 flex-1 pr-2">
+                <p className="text-xs font-mono text-gray-400">
+                  {prompt.category?.toUpperCase()}
+                </p>
+                {/* Indicador de prompt acessado (apenas para Elite) */}
+                {isElite && isAccessed && (
+                  <div className="flex items-center gap-1" title="Prompt já acessado">
+                    <FaEye className="text-blue-400 text-xs" />
+                    <span className="text-xs text-blue-400 font-medium">Visto</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Botão de favorito */}
               <div className="relative z-50" onClick={(e) => e.stopPropagation()}>
                 <FavoriteButton 
                   promptId={prompt.id} 
                   size="md"
                   onFavoriteChange={(isFavorited: any) => {
-                    return console.log(`Prompt ${prompt.id} favorito alterado:`, isFavorited);
+                    console.log(`Prompt ${prompt.id} favorito alterado:`, isFavorited);
                   }}
                 />
               </div>
@@ -100,6 +177,13 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
                 {prompt.level}
               </span>
             </div>
+
+            {/* Badge especial para prompts acessados (Elite) */}
+            {isElite && isAccessed && (
+              <div className="absolute top-2 right-14 bg-blue-500/20 border border-blue-500/50 rounded-full p-1">
+                <FaEye className="text-blue-400 text-xs" />
+              </div>
+            )}
           </div>
 
           {/* Camada de bloqueio se NÃO desbloqueado */}
@@ -108,7 +192,10 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
               onClick={onClick} 
               className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-lg cursor-pointer group z-30"
             >
-              <FaLock className="text-white text-3xl opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+              <div className="text-center">
+                <FaLock className="text-white text-3xl opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all mx-auto mb-2" />
+                <p className="text-white/70 text-sm font-medium">Clique para desbloquear</p>
+              </div>
             </div>
           )}
 
@@ -118,13 +205,7 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
               href={`/biblioteca/${prompt.id}`} 
               className="absolute inset-0 z-20 rounded-lg" 
               aria-label={`Acessar prompt ${prompt.title}`}
-              onClick={(e) => {
-                // Previne navegação se clicou em elementos interativos
-                const target = e.target as HTMLElement;
-                if (target.closest('button') || target.closest('[data-interactive]')) {
-                  e.preventDefault();
-                }
-              }}
+              onClick={handleLinkClick}
             />
           )}
         </div>
@@ -132,31 +213,33 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
         {/* BOTÕES DE FEEDBACK */}
         <div className="flex items-center gap-3 mt-4 relative z-40">
           {feedbackGiven ? (
-            <span className="text-green-400 text-xs font-medium">
-              {feedbackGiven === 'like' ? 'Obrigado pelo feedback! 🙌' : 'Vamos melhorar! 👀'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 text-xs font-medium">
+                {feedbackGiven === 'like' ? 'Obrigado pelo feedback! 🙌' : 'Vamos melhorar! 👀'}
+              </span>
+            </div>
           ) : (
             <>
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-full bg-white/10 hover:bg-green-900/60 transition-colors cursor-pointer"
+                className="p-2 rounded-full bg-white/10 hover:bg-green-900/60 transition-colors cursor-pointer disabled:opacity-50"
                 disabled={loading}
                 title="Gostei"
                 onClick={(e) => handleFeedback('like', e)}
                 type="button"
               >
-                <FaThumbsUp className="text-green-300" />
+                <FaThumbsUp className={`text-green-300 ${loading ? 'animate-pulse' : ''}`} />
               </motion.button>
               
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-full bg-white/10 hover:bg-red-900/60 transition-colors cursor-pointer"
+                className="p-2 rounded-full bg-white/10 hover:bg-red-900/60 transition-colors cursor-pointer disabled:opacity-50"
                 disabled={loading}
                 title="Não gostei"
                 onClick={(e) => handleFeedback('dislike', e)}
                 type="button"
               >
-                <FaThumbsDown className="text-red-400" />
+                <FaThumbsDown className={`text-red-400 ${loading ? 'animate-pulse' : ''}`} />
               </motion.button>
               
               <span className="text-xs text-gray-400 ml-2">Gostou do prompt?</span>
@@ -165,11 +248,12 @@ export default function PromptCard({ prompt, isUnlocked, onClick, onOpenFeedback
           
           {/* Botão para abrir o modal de feedback */}
           <button
-            className="ml-4 text-xs bg-blue-800/70 hover:bg-blue-900 transition-colors text-blue-200 font-semibold px-4 py-2 rounded-xl shadow-sm border border-blue-900"
+            className="ml-auto text-xs bg-blue-800/70 hover:bg-blue-900 transition-colors text-blue-200 font-semibold px-4 py-2 rounded-xl shadow-sm border border-blue-900 disabled:opacity-50"
             onClick={(e) => { 
               e.stopPropagation(); 
               onOpenFeedback(); 
             }}
+            disabled={loading}
             type="button"
           >
             Deixe seu feedback
