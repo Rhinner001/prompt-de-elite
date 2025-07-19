@@ -1,5 +1,7 @@
 // types/index.ts
 
+import { ReactNode } from "react";
+
 // NOVO: Definimos a estrutura de um único campo personalizável
 export interface PromptField {
   name: string;
@@ -7,6 +9,7 @@ export interface PromptField {
 }
 
 export interface Prompt {
+  content: ReactNode;
   id: string;
   title: string;
   description: string;
