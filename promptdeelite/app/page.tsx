@@ -1,8 +1,11 @@
+// app/page.tsx - SUA LANDING PAGE COM REDIRECIONAMENTO
 'use client';
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/src/components/context/AuthContext'; // ADICIONADO
+
 declare global {
   interface Window {
     gtag?: (...args: any[]) => void;
@@ -56,13 +59,11 @@ const testimonials = [
 function TestimonialCard({ name, role, image, text, improvement }: any) {
   return (
     <div className="relative overflow-hidden group bg-gradient-to-br from-[#192343]/70 to-[#2477e0]/10 border border-[#38bdf8]/30 rounded-2xl p-4 sm:p-6 shadow-xl transition-transform duration-300 hover:scale-105">
-      {/* Halo/glow */}
       <div className="absolute -top-1/3 -left-1/3 w-[200%] h-[200%] pointer-events-none opacity-30 group-hover:opacity-60 transition">
         <div className="animate-spin-slow w-full h-full rounded-full bg-gradient-to-r from-[#38bdf8] via-white/20 to-[#2477e0] blur-2xl"></div>
       </div>
       <div className="relative z-10 flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-4">
         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-4 border-[#38bdf8]/50 shadow-lg overflow-hidden flex-shrink-0 bg-white">
-          {/* Next/Image já otimiza para diferentes tamanhos de tela se configurado em next.config.js */}
           <Image src={image} alt={`Foto de ${name}`} width={56} height={56} className="object-cover w-full h-full" />
         </div>
         <div>
@@ -81,12 +82,54 @@ function TestimonialCard({ name, role, image, text, improvement }: any) {
 
 export default function LandingPageHighConversion() {
   const router = useRouter();
+  
+  // ADICIONADO - Sistema de redirecionamento
+  const { user, loading } = useAuth();
+  const [shouldRenderLanding, setShouldRenderLanding] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Estados originais da landing
   const [timeLeft, setTimeLeft] = useState(300);
   const [currentActivity, setCurrentActivity] = useState(0);
   const [usersToday, setUsersToday] = useState(2500);
   const [isClient, setIsClient] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // ADICIONADO - Lógica de redirecionamento
+  useEffect(() => {
+    // Se ainda está carregando auth, espera
+    if (loading) return;
+
+    // Se usuário está logado, verifica se deve redirecionar
+    if (user) {
+      const lastVisit = localStorage.getItem('lastDashboardVisit');
+      
+      if (lastVisit) {
+        const lastVisitTime = new Date(lastVisit).getTime();
+        const now = new Date().getTime();
+        const hoursSinceLastVisit = (now - lastVisitTime) / (1000 * 60 * 60);
+        
+        // Se visitou o dashboard nas últimas 24 horas, redireciona
+        if (hoursSinceLastVisit < 24) {
+          console.log('🔄 Usuário ativo detectado, redirecionando para dashboard...');
+          setIsRedirecting(true);
+          router.replace('/dashboard');
+          return;
+        }
+      }
+      
+      // Se usuário logado mas não visitou recentemente, ainda redireciona
+      console.log('👤 Usuário logado detectado, redirecionando...');
+      setIsRedirecting(true);
+      router.replace('/dashboard');
+      return;
+    }
+    
+    // Se não está logado, renderiza a landing
+    setShouldRenderLanding(true);
+  }, [user, loading, router]);
+
+  // Estados originais da landing
   useEffect(() => {
     setIsClient(true);
     const handleResize = () => setIsMobile(window.innerWidth < 640);
@@ -128,6 +171,52 @@ export default function LandingPageHighConversion() {
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
+  // ADICIONADO - Loading state enquanto verifica autenticação
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0c1c3f] via-[#1a2b5c] to-[#0c1c3f] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-slate-600 border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 bg-blue-500/20 rounded-full"></div>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-2">Carregando</h2>
+            <p className="text-slate-400">Verificando seu acesso...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ADICIONADO - Redirecting state quando está redirecionando usuário logado
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0c1c3f] via-[#1a2b5c] to-[#0c1c3f] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-green-600 border-t-green-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 bg-green-500/20 rounded-full"></div>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-green-400 mb-2">Bem-vindo de volta!</h2>
+            <p className="text-slate-400">Redirecionando para seu dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ADICIONADO - Se não deve renderizar a landing ainda, retorna null
+  if (!shouldRenderLanding) {
+    return null;
+  }
+
+  // RESTO DO SEU CÓDIGO DA LANDING PERMANECE EXATAMENTE IGUAL
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#0c1c3f] via-[#1a2b5c] to-[#0c1c3f] text-white relative overflow-hidden">
       {!isMobile && (
@@ -200,7 +289,6 @@ export default function LandingPageHighConversion() {
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" aria-hidden="true"></div>
                   <span className="text-green-400 text-xs font-medium">🔴 AO VIVO:</span>
                 </div>
-                {/* Melhoria: Ajuste da fonte para ser um pouco maior em mobile */}
                 <p className="text-gray-300 text-sm sm:text-base">
                   {liveActivity[currentActivity]}
                 </p>
@@ -218,7 +306,6 @@ export default function LandingPageHighConversion() {
                 <span className="text-red-400 font-bold text-xs sm:text-sm">🔥 DESCOBERTA CRÍTICA</span>
               </div>
 
-              {/* Melhoria: Ajuste do leading para mobile para melhor legibilidade */}
               <h1 className="text-2xl sm:text-4xl md:text-6xl font-bold mb-3 sm:mb-6 leading-normal sm:leading-tight">
                 <span className="text-red-400">Por que</span> seus prompts falham<br />
                 <span className="bg-gradient-to-r from-[#38bdf8] to-[#2477e0] bg-clip-text text-transparent">

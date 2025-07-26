@@ -13,6 +13,7 @@ interface CategoryRowProps {
   onCardClick: (prompt: Prompt) => void;
   isElite: boolean;
   onOpenFeedback: (promptId: string) => void; // <-- CORRETO
+  onPromptAccessed: (promptId: string) => void; // <-- CORRETO
 }
 
 export default function CategoryRow({
