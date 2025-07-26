@@ -121,7 +121,7 @@ export default function LandingPageHighConversion() {
       // Se usuário logado mas não visitou recentemente, ainda redireciona
       console.log('👤 Usuário logado detectado, redirecionando...');
       setIsRedirecting(true);
-      router.replace('/dashboard');
+      router.push('/dashboard');
       return;
     }
     
@@ -212,9 +212,13 @@ export default function LandingPageHighConversion() {
   }
 
   // ADICIONADO - Se não deve renderizar a landing ainda, retorna null
-  if (!shouldRenderLanding) {
-    return null;
-  }
+if (!shouldRenderLanding && !isRedirecting && !loading) {
+  return (
+    <div className="min-h-screen bg-[#0c1c3f] flex items-center justify-center text-white">
+      <p>Inicializando...</p>
+    </div>
+  );
+}
 
   // RESTO DO SEU CÓDIGO DA LANDING PERMANECE EXATAMENTE IGUAL
   return (
